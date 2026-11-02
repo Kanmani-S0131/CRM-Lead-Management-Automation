@@ -88,17 +88,31 @@ export const LeadsTable: React.FC = () => {
     }
   };
 
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
+
+  const triggerDownload = (filename: string, content: string) => {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const handleExportProcessedCSV = () => {
     const headers = [
       'lead_id', 'name', 'company', 'industry', 'email', 'phone', 'source', 'region',
-      'created_date', 'status', 'budget', 'company_size', 'timeline', 'lead_score',
-      'grade', 'owner', 'follow_up_due', 'sla_breached', 'days_overdue',
+      'created_date', 'status', 'budget', 'company_size', 'timeline', 'website_visits',
+      'emails_opened', 'lead_score', 'grade', 'owner', 'follow_up_due', 'sla_breached', 'days_overdue',
     ];
     const rows = sortedProcessed.map((l) => [
       l.lead_id,
-      `"${l.name}"`,
-      `"${l.company}"`,
-      `"${l.industry}"`,
+      `"${(l.name || '').replace(/"/g, '""')}"`,
+      `"${(l.company || '').replace(/"/g, '""')}"`,
+      `"${(l.industry || '').replace(/"/g, '""')}"`,
       l.email,
       l.phone,
       `"${l.source}"`,
@@ -108,6 +122,8 @@ export const LeadsTable: React.FC = () => {
       l.budget,
       l.company_size,
       `"${l.timeline}"`,
+      l.website_visits,
+      l.emails_opened,
       l.lead_score,
       l.grade,
       `"${l.owner}"`,
@@ -115,11 +131,59 @@ export const LeadsTable: React.FC = () => {
       l.sla_breached ? 'TRUE' : 'FALSE',
       l.days_overdue,
     ]);
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const link = document.createElement('a');
-    link.href = encodeURI(csvContent);
-    link.download = `processed_leads_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const filename = `processed_leads_${new Date().toISOString().slice(0, 10)}.csv`;
+    triggerDownload(filename, csvContent);
+    setExportNotice(`Exported ${sortedProcessed.length} current leads to ${filename}`);
+    setTimeout(() => setExportNotice(null), 3500);
+  };
+
+  const handleExportRejectedCSV = () => {
+    const headers = [
+      'lead_id', 'name', 'email', 'phone', 'source', 'region', 'created_date',
+      'company', 'industry', 'status', 'budget', 'company_size', 'timeline',
+      'website_visits', 'emails_opened', 'reject_reason',
+    ];
+    const rows = rejectedLeads.map((r) => [
+      r.lead_id,
+      `"${(r.name || '').replace(/"/g, '""')}"`,
+      `"${(r.email || '').replace(/"/g, '""')}"`,
+      `"${(r.phone || '').replace(/"/g, '""')}"`,
+      `"${(r.source || '').replace(/"/g, '""')}"`,
+      `"${(r.region || '').replace(/"/g, '""')}"`,
+      `"${(r.created_date || '').replace(/"/g, '""')}"`,
+      `"${(r.company || '').replace(/"/g, '""')}"`,
+      `"${(r.industry || '').replace(/"/g, '""')}"`,
+      `"${(r.status || '').replace(/"/g, '""')}"`,
+      r.budget ?? '',
+      r.company_size ?? '',
+      `"${(r.timeline || '').replace(/"/g, '""')}"`,
+      r.website_visits ?? '',
+      r.emails_opened ?? '',
+      `"${(r.reject_reason || '').replace(/"/g, '""')}"`,
+    ]);
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const filename = `rejected_leads_${new Date().toISOString().slice(0, 10)}.csv`;
+    triggerDownload(filename, csvContent);
+    setExportNotice(`Exported ${rejectedLeads.length} rejected leads to ${filename}`);
+    setTimeout(() => setExportNotice(null), 3500);
+  };
+
+  const handleExportDuplicatesCSV = () => {
+    const headers = ['lead_id', 'name', 'email', 'created_date', 'kept_lead_id', 'reject_reason'];
+    const rows = duplicateLeads.map((d) => [
+      d.lead_id,
+      `"${(d.name || '').replace(/"/g, '""')}"`,
+      `"${(d.email || '').replace(/"/g, '""')}"`,
+      d.created_date,
+      d.kept_lead_id || '',
+      `"${(d.reject_reason || '').replace(/"/g, '""')}"`,
+    ]);
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const filename = `duplicate_leads_${new Date().toISOString().slice(0, 10)}.csv`;
+    triggerDownload(filename, csvContent);
+    setExportNotice(`Exported ${duplicateLeads.length} duplicate leads to ${filename}`);
+    setTimeout(() => setExportNotice(null), 3500);
   };
 
   return (
@@ -164,16 +228,58 @@ export const LeadsTable: React.FC = () => {
           </button>
         </div>
 
-        {activeSubTab === 'processed' && (
-          <button
-            onClick={handleExportProcessedCSV}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md transition-colors shadow-2xs"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export processed_leads.csv</span>
-          </button>
-        )}
+        {/* Primary Export Button */}
+        <div className="flex items-center gap-2">
+          {activeSubTab === 'processed' && (
+            <button
+              onClick={handleExportProcessedCSV}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white rounded-md transition-colors shadow-2xs whitespace-nowrap"
+              title="Download current filtered leads as a CSV spreadsheet"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-400 dark:text-emerald-600" />
+              <span>Export CSV ({sortedProcessed.length} Leads)</span>
+            </button>
+          )}
+
+          {activeSubTab === 'rejected' && (
+            <button
+              onClick={handleExportRejectedCSV}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white rounded-md transition-colors shadow-2xs whitespace-nowrap"
+              title="Download rejected leads with reasons as a CSV file"
+            >
+              <Download className="w-3.5 h-3.5 text-red-400" />
+              <span>Export Rejected Leads CSV ({rejectedLeads.length})</span>
+            </button>
+          )}
+
+          {activeSubTab === 'duplicates' && (
+            <button
+              onClick={handleExportDuplicatesCSV}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white rounded-md transition-colors shadow-2xs whitespace-nowrap"
+              title="Download duplicate records as a CSV file"
+            >
+              <Download className="w-3.5 h-3.5 text-amber-400" />
+              <span>Export Duplicate Leads CSV ({duplicateLeads.length})</span>
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Export Confirmation Toast */}
+      {exportNotice && (
+        <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 rounded-md text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{exportNotice}</span>
+          </div>
+          <button
+            onClick={() => setExportNotice(null)}
+            className="text-emerald-600 hover:text-emerald-800 dark:hover:text-emerald-200 text-xs font-semibold"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Processed Leads View */}
       {activeSubTab === 'processed' && (
@@ -228,6 +334,15 @@ export const LeadsTable: React.FC = () => {
                   </option>
                 ))}
               </select>
+
+              <button
+                onClick={handleExportProcessedCSV}
+                className="py-1 px-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded text-slate-800 dark:text-slate-200 font-medium flex items-center gap-1.5 transition-colors ml-1"
+                title="Download currently filtered leads as CSV"
+              >
+                <Download className="w-3.5 h-3.5 text-slate-500" />
+                <span>Export Filtered CSV</span>
+              </button>
             </div>
           </div>
 
