@@ -1,0 +1,6 @@
+{
+  "name": "LeadPulse CRM Automation",
+  "description": "Real-time CRM lead management automation platform featuring dynamic scoring, intelligent round-robin routing, visual workflow builder, and live inbound stream ingestion.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
